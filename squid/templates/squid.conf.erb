@@ -1,0 +1,160 @@
+##### Helpers
+
+auth_param negotiate program /usr/<%= @libdir %>/squid/<%= @negotiate_helper %>
+auth_param negotiate children 10 
+auth_param negotiate keep_alive on
+
+auth_param basic program /usr/<%= @libdir %>/squid/<%= @basic_auth_helper %> -t 600 -n squid
+auth_param basic children 10
+auth_param basic realm Squid proxy-caching web server
+auth_param basic credentialsttl 2 hours
+
+#external_acl_type grupo %LOGIN /usr/<%= @libdir %>/squid/<%= @group_helper %> -b  <%= @ldap_search_base %> -f <%= @ldap_query %> -H <%= @ldap_uri %> -v 3 -P 
+
+##### ACLs
+acl all src all
+acl localhost src 127.0.0.1/32
+acl to_localhost dst 127.0.0.0/8 0.0.0.0/32 
+
+acl localnet src 10.0.0.0/8	# RFC1918 possible internal network
+acl localnet src 172.16.0.0/12	# RFC1918 possible internal network
+acl localnet src 192.168.0.0/16 # RFC1918 possible internal network
+
+acl to_localnet dst 10.0.0.0/8	# RFC1918 possible internal network
+acl to_localnet dst 172.16.0.0/12	# RFC1918 possible internal network
+acl to_localnet dst 192.168.0.0/16 # RFC1918 possible internal network
+
+acl Safe_ports port 80		# http
+acl Safe_ports port 21		# ftp
+acl Safe_ports port 443	444     # https
+acl Safe_ports port 70		# gopher
+acl Safe_ports port 210		# wais
+acl Safe_ports port 1025-65535	# unregistered ports
+acl Safe_ports port 280		# http-mgmt
+acl Safe_ports port 488		# gss-http
+acl Safe_ports port 591		# filemaker
+acl Safe_ports port 777		# multiling http
+acl Safe_ports port <% @puertos.each do |val| -%><%= val %> <% end %>
+acl SSL_ports port 443 444 
+acl SSL_ports port <% @puertos_ssl.each do |val| -%><%= val %> <% end %>
+acl CONNECT method CONNECT
+
+acl numeric_IPs dstdom_regex (([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)|(\[([0-9af]+)?:([0-9af:]+)?:([0-9af]+)?\]))
+acl Skype_UA browser ^skype
+acl autenticados proxy_auth REQUIRED
+
+<% if @networkinvitados -%> 
+<% @networkinvitados.each do |val| -%>
+acl src_invitados src <%= val %>
+<% end -%>
+<% end -%>
+
+acl pag_permitidas dstdomain "/etc/squid/pag_permitidas"
+
+acl pag_bloqueadas dstdomain "/etc/squid/pag_bloqueadas"
+
+acl ip_libres src "/etc/squid/ip_libres"
+
+#acl grp_navegacionbasica external grupo navegacionbasica
+#acl grp_navegacionlibre external grupo navegacionlibre
+
+acl snmpro snmp_community <%= @snmpcommunity %>
+acl snmpserver src <%= @snmpserver %>
+
+acl dominioprueba dstdomain .slashdot.org
+
+acl reguladas src "/etc/squid/ip_reguladas"
+
+##### Control de Ancho de Banda
+
+delay_pools 1
+delay_class 1 1
+delay_parameters 1 1000/100
+acl librereguladas url_regex \.flv$
+acl librereguladas url_regex \.mp4$
+acl librereguladas url_regex -i watch?
+acl librereguladas url_regex -i youtube
+acl librereguladas url_regex -i facebook
+
+##### Control de Acceso
+#http_access allow manager localhost
+#http_access deny manager
+http_access deny !Safe_ports
+http_access deny CONNECT !SSL_ports
+http_access allow localhost
+
+#http_access allow dominioprueba grp_navegacionlibre
+#http_access deny dominioprueba
+
+http_access allow to_localnet
+http_access allow CONNECT numeric_IPS
+<% if @networkinvitados -%> 
+http_access allow invitados
+<% end -%>
+http_access allow ip_libres
+http_access allow pag_permitidas
+#OJO La siguiente linea es necesaria para poder pasar el usuario a ufdbGuard
+http_access allow autenticados
+http_access allow all
+delay_access 1 allow librereguladas reguladas
+
+
+snmp_access allow snmpro localhost
+snmp_access allow snmpro snmpserver
+snmp_access deny all
+
+http_reply_access allow all
+hierarchy_stoplist cgi-bin ?
+
+icp_access allow localnet
+icp_access deny all
+
+<% if @networkinvitados -%> 
+#Delay pools para invitados
+delay_pools 1
+delay_class 1 1
+delay_access 1 allow invitados
+delay_access 1 deny all
+delay_parameters 1 256000/256000
+<% end -%>
+
+##### Redirectores
+redirector_bypass on
+url_rewrite_access deny pag_permitidas
+url_rewrite_access allow all
+url_rewrite_children 64
+url_rewrite_program  /usr/sbin/ufdbgclient
+
+##### Puertos
+http_port 3128 transparent
+http_port 8080
+snmp_port 3401
+icp_port  3130
+
+##### Otros
+coredump_dir /var/spool/squid
+
+refresh_pattern ^ftp:		1440	20%	10080
+refresh_pattern ^gopher:	1440	0%	1440
+refresh_pattern -i (/cgi-bin/|\?) 0	0%	0
+refresh_pattern .		0	20%	4320
+refresh_pattern -i \.crl$	30	80% 	4320 	reload-into-ims override-expire ignore-no-cache ignore-no-store
+refresh_pattern -i \.(gif|png|jpg|jpeg|ico)$ 10080 90% 43200
+refresh_pattern -i \.(deb|rpm|exe|zip|tar|tgz|ram|rar|bin|ppt|doc|tiff)$ 10080 90% 43200
+
+query_icmp on
+
+<% if @cache_peers -%> 
+<% @cache_peers.each do |val| -%>
+cache_peer 	<%= val %> sibling 8080  3130
+<% end -%>
+<% end -%>
+
+access_log /var/log/squid/access.log squid
+cache_log /var/log/squid/cache.log
+cache_mgr <%= @mgr_email %>
+dns_defnames on
+append_domain .<%= @default_domain %>
+
+cache_mem 128 MB
+cache_dir diskd /var/spool/squid 20000 16 128

@@ -1,0 +1,35 @@
+####################################################################
+##
+## /etc/ldap.conf o /etc/libnss.ldap.conf
+## Configuración de libnss_ldap para que consulte la lista de
+## usuarios y grupos del sistema en el servidor de directorio
+##
+## NO MODIFIQUE ESTE ARCHIVO DIRECTAMENTE
+## Este archivo es controlado por el sistema puppet
+## 
+## Original por Loris Santamaria <loris@lgs.com.ve> el 22/09/2008
+##
+#####################################################################
+
+base <%= @suffix %>
+uri <% @ldapservers.each do |val| -%> ldap://<%= val %>:389/ <% end -%>
+
+ldap_version 3
+
+nss_base_passwd cn=accounts,<%= @suffix %>?sub
+nss_base_group cn=groups,cn=accounts,<%= @suffix %>?sub
+nss_schema rfc2307bis
+nss_map_attribute uniqueMember member
+nss_initgroups_ignoreusers root,ldap,dirsrv,named,avahi,haldaemon
+nss_reconnect_maxsleeptime 2
+nss_reconnect_sleeptime 1
+
+sudoers_base ou=SUDOers,<%= @suffix %>
+binddn uid=sudo,cn=sysaccounts,cn=etc,<%= @suffix %>
+bindpw 987ugibhig
+
+cacertfile /etc/ipa/ca.crt
+
+bind_timelimit 5
+timelimit 10
+bind_policy soft

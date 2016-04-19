@@ -1,0 +1,43 @@
+####################################################################
+#
+# /etc/nsswitch.conf
+# Este archivo indica al sistema operativo en que bases de datos
+# debe consultar la lista de usuarios del sistema
+# Para un correcto funcionamiento en el directorio
+# se consultaran primero los archivos estandar de unix (/etc/passwd 
+# y /etc/group), luego la base de datos mantenida por libnss_db 
+# y por ultimo el directorio ldap.
+# Esto permite que los clientes trabajen a la mayor velocidad
+# posible al no tener que consultar continuamente los servidores
+# ldap.
+#
+# NO MODIFIQUE ESTE ARCHIVO DIRECTAMENTE
+# Este archivo es controlado por el sistema puppet
+# 
+# Original por Loris Santamaria <loris@lgs.com.ve> el 22/09/2008
+#
+####################################################################
+
+passwd:         files sss
+group:          files sss
+shadow:         files sss
+
+hosts:          files dns mdns4
+networks:       files
+
+protocols:      files
+services:       files sss
+ethers:         files
+rpc:            files
+
+netgroup:   	files sss 
+
+publickey:  	nisplus
+
+automount:  	files sss
+aliases:    	files 
+<% if @lsbmajdistrelease == "5" -%>
+sudoers:  	files ldap
+<% else -%>
+sudoers:  	files sss
+<% end -%>

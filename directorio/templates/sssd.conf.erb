@@ -1,0 +1,48 @@
+[sssd]
+config_file_version = 2
+domains = <%= @realm %>
+<% if @lsbmajdistrelease == "7" or @lsbmajdistrelease == "6" -%>
+services = nss, pam, ssh, autofs, sudo, pac
+<% else -%>
+services = nss, pam
+<% end -%>
+<% if @lsbmajdistrelease == "5" -%>
+re_expression = (?P<name>.+)
+<% end -%>
+
+[nss]
+
+[pam]
+
+<% if @lsbmajdistrelease == "7" or @lsbmajdistrelease == "6" -%>
+[ssh]
+
+[autofs]
+
+[sudo]
+
+[pac]
+
+[ifp]
+
+<% end -%>
+[domain/<%= @realm %>]
+<% if @lsbmajdistrelease == "7" or @lsbmajdistrelease == "6" -%>
+id_provider = ipa
+access_provider = ipa
+subdomains_provider = ipa
+krb5_store_password_if_offline = True
+ipa_automount_location = default
+<% end -%>
+<% if @lsbmajdistrelease == "5" -%>
+id_provider = ldap
+auth_provider = ldap
+ldap_search_base = cn=compat,<%= @suffix %>
+ldap_sasl_mech = GSSAPI
+<% end -%>
+cache_credentials = true
+ldap_netgroup_search_base = cn=ng,cn=compat,<%= @suffix %>
+ldap_tls_cacert = /etc/ipa/ca.crt
+<% if @is_ipa_server != "no" -%>
+ipa_server_mode = True
+<% end -%>

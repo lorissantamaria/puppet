@@ -1,0 +1,19 @@
+function FindProxyForURL(url, host) {
+
+    if (isPlainHostName(host) || 
+	dnsDomainIs(host, ".<%= @domain %>") || 
+	isInNet(host, "127.0.0.1", "255.255.255.255") || 
+	isInNet(host, "192.168.0.0", "255.255.0.0"))
+        return "DIRECT";
+
+    <%- @zonas.each do |key, val| -%>
+    if (isInNet(myIpAddress(), "<%= val['subred'] %>", "255.255.255.0"))
+        return "PROXY <%= val['proxy'] %>";
+    <%- end -%>
+
+    if (isInNet(myIpAddress(), "10.1.2.0", "255.255.255.0"))
+        return "DIRECT";
+    
+    return "DIRECT";
+
+}

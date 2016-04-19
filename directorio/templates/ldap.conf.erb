@@ -1,0 +1,22 @@
+####################################################################
+#
+# /etc/ldap/ldap.conf
+# Configuracion de las librerias clientes de ldap
+#
+# NO MODIFIQUE ESTE ARCHIVO DIRECTAMENTE
+# Este archivo es controlado por el sistema puppet
+# 
+# Original por Loris Santamaria <loris@lgs.com.ve> el 22/09/2008
+#
+####################################################################
+
+BASE <%= @suffix %>
+URI <% @ldapservers.each do |val| -%> ldap://<%= val %>:389/ <% end -%>
+
+TIMELIMIT	15
+TIMEOUT		5
+
+TLS_CACERT	/etc/ipa/ca.crt
+
+SASL_MECH	GSSAPI
+SASL_NOCANON	on
